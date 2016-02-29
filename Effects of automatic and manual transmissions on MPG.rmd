@@ -1,0 +1,123 @@
+---
+title: "Effects of automatic and manual transmission on MPG"
+author: "Pete Schnettler"
+date: "February 20, 2016"
+output: html_document
+---
+
+##Executive Summary
+Motor Trend magazine has been providing automotive information to their subscribers and interested in answering two questions about fuel efficiency and transmission selection for their readers.  Specifically:
+  
++ Is an automatic or manual transmission better for MPG?
++ Quantify the MPG difference between automatic and manual transmissions
+
+Utilizing linear regression, this paper will study whether there is a material difference in miles per gallon between cars that have automatic transmissions verses those with manual transmissions.
+
+
+
+##Data Processing and transformation
+For this analysis we will use the mtcars dataset and transform variables into factors
+``` {r}
+data(mtcars)
+mtcars$cyl  <- factor(mtcars$cyl)
+mtcars$vs   <- factor(mtcars$vs)
+mtcars$gear <- factor(mtcars$gear)
+mtcars$carb <- factor(mtcars$carb)
+mtcars$am   <- factor(mtcars$am,labels=c("Automatic","Manual"))
+str(mtcars)
+```
+##Exploratory Analysis
+
+###Model Selection
+In order to determine the predictors, we will start with building a model with all of the variables as predictors and perform all-subsets regression using the leaps( ) function from the leaps package. Finnaly, the car library will be used to look at the adjusted r Square values for combinations of variables.
+
+```{r, somename2, eval=FALSE}
+library(leaps)
+attach(mtcars)
+leaps <- regsubsets(mpg ~ ., data = mtcars, nbest=1)
+library(car)
+subsets(leaps, statistic = "adjr2", legend=c(20, 20))
+```
+
+![alt text](subsetsleap.jpeg)
+
+From the above model details,the adjusted \(R^2\) peaks at about 0.85 considering all combinations of variables. Thus, we can conclude that more than 85% of the variability is explained by the above model.
+
+```{r, somename, message=FALSE}
+data(mtcars)
+fit <- lm(mpg~., data = mtcars)
+library(relaimpo)
+```
+
+```{r}
+relimp <- calc.relimp(fit,type=c("last"),rela=TRUE)
+boot <- boot.relimp(fit, b = 100, type = c("last"), rank = TRUE, diff = TRUE, rela = TRUE)
+plot(booteval.relimp(boot,sort=TRUE))
+```
+
+From the plot above, "am" which represents automatic vs manual, ranks second in relative importance for mpg behind weight.
+
+###Residuals and Diagnostics
+Lets take a look at some residual plots from the regression model along with computation of regression diagnostics for the model. This will examine the residuals and finding leverage points to find any issues with the model.
+
+```{r, results="hide"}
+baseModel <- lm(mpg ~ ., data = mtcars)
+stepModel <- step(baseModel, direction = "both")
+```
+```{r}
+par(mfrow = c(2,2))
+plot(stepModel)
+```
+```{r}
+
+```
+
+
+From the above plots, we can make the following observations,
+
++ The Residuals vs. Fitted plot shows no consistent pattern, supporting the accuracy of the independence assumption.
++ The Normal Q-Q plot consists of the points which for tthe most part fall on the line indicating that the residuals are normally distributed.
++ The Scale-Location plot confirms the constant variance assumption, as the points are randomly distributed.
++ The Residuals vs. Leverage plot indicates that no outliers are present, as all values fall well within the 0.5 bands in the upper right of the plot.
+
+###Inference
+A t-test will be run to look whether the transmission data has a normal distribution
+
+```{r}
+t.test(mpg ~ am, data = mtcars)
+```
+
+Based on the t-test results and a p-value of .0014, we reject the null hypothesis that the mpg distributions for manual and automatic transmissions are the same.
+ 
+##Conclusion
+The first question to answer is:
+
++ Is an automatic or manual transmission better for MPG
+
+```{r}
+boxplot(mpg ~ am, data = mtcars, col = (c("orange","green")), names = c("Automatic", "Manual"), ylab = "Miles Per Gallon", xlab = "Transmission Type")
+```
+
+From the box plot above we can see that Manual transmissions vehicles have better MPG
+
+The second question to answer:
+
++ Quantify the MPG difference between automatic and manual transmissions
+
+```{r}
+fit <- lm(mpg ~ am, data = mtcars)
+coef(summary(fit))
+```
+
+From the linear model,  
+
++ The average MPG for automatic transmissions is 17.147 MPG (Which is also illustrated in the boxplot above), and 
++ We can calculate the average MPG for manual transmissions as 24.392 MPG (7.245 + 17.147). 
++ To answer the question above, the MPG difference between automatic and manual transmission is 7.245 MPG;
+
+```{r}
+summary(fit)
+```
+
+
+The model an Adjusted R-squared value is 0.3385, which means that the model can explain about 34% of the variance of the MPG variable. The low Adjusted R-squared value would indicates that we need to add other variables to the model such as weight which we observed in the relative im,portance for mpg chart above..
